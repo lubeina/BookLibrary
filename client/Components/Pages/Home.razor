@@ -1,0 +1,326 @@
+@page "/"
+@rendermode InteractiveServer
+@inject ApiService Api
+
+<h1>Book Manager</h1>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h3 class="mb-0">Authors</h3>
+    </div>
+    <div class="card-body">
+
+        @if (_authors is null)
+        {
+            <p>Loading authors...</p>
+        }
+        else if (!_authors.Any())
+        {
+            <p class="text-muted">No authors yet. Add one below.</p>
+        }
+        else
+        {
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Id</th>
+                        <th>Name</th>
+                        <th>Books</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var author in _authors)
+                    {
+                        <tr>
+                            <td>@author.Id</td>
+                            <td>
+                                @if (_editingAuthorId == author.Id)
+                                {
+                                    <input @bind="_editAuthorName" class="form-control form-control-sm" />
+                                }
+                                else
+                                {
+                                    @author.Name
+                                }
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">
+                                    @(_books?.Count(b => b.AuthorId == author.Id) ?? 0)
+                                </span>
+                            </td>
+                            <td>
+                                @if (_editingAuthorId == author.Id)
+                                {
+                                    <button class="btn btn-sm btn-success" @onclick="() => SaveAuthor(author)">Save</button>
+                                    <button class="btn btn-sm btn-secondary" @onclick="CancelAuthorEdit">Cancel</button>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => StartAuthorEdit(author)">Edit</button>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAuthor(author.Id)">Delete</button>
+                                }
+                            </td>
+                     
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+
+        <div class="d-flex gap-2 mt-3">
+            <input @bind="_newAuthorName" placeholder="Author name..."
+                   class="form-control" style="max-width:300px" />
+            <button class="btn btn-primary" @onclick="AddAuthor">Add Author</button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_authorError))
+        {
+            <div class="alert alert-danger mt-2">@_authorError</div>
+        }
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="mb-0">Books</h3>
+    </div>
+    <div class="card-body">
+
+        @if (_books is null)
+        {
+            <p>Loading books...</p>
+        }
+        else if (!_books.Any())
+        {
+            <p class="text-muted">No books yet. Add one below.</p>
+        }
+        else
+        {
+            <div class="d-flex flex-column gap-2">
+            <div class="mb-3">
+                <input @bind="_searchTerm" @bind:event="oninput"
+                    placeholder="Search books by title..."
+                    class="form-control" style="max-width:300px" />
+            </div>
+            <table class="table table-sm">
+                <thead>
+                <tr>
+                    <th>Id</th>
+                    <th>Title</th>
+                    <th>Author</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var book in FilteredBooks)
+                {
+                    <tr>
+                        <td>@book.Id</td>
+                        <td>
+                            @if (_editingBookId == book.Id)
+                            {
+                                <input @bind="_editBookTitle" class="form-control form-control-sm" />
+                            }
+                            else
+                            {
+                                @book.Title
+                            }
+                        </td>
+                        <td>
+                            @if (_editingBookId == book.Id)
+                            {
+                                <select @bind="_editBookAuthorId" class="form-select form-select-sm">
+                                    @foreach (var a in _authors)
+                                    {
+                                        <option value="@a.Id">@a.Name</option>
+                                    }
+                                </select>
+                            }
+                            else
+                            {
+                                @book.AuthorName
+                            }
+                        </td>
+                        <td>
+                            @if (_editingBookId == book.Id)
+                            {
+                                <button class="btn btn-sm btn-success" @onclick="() => SaveBook(book)">Save</button>
+                                <button class="btn btn-sm btn-secondary" @onclick="CancelBookEdit">Cancel</button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-sm btn-outline-primary" @onclick="() => StartBookEdit(book)">Edit</button>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteBook(book.Id)">Delete</button>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+            </div>
+        }
+
+        <div class="d-flex gap-2 mt-3 flex-wrap">
+            <input @bind="_newBookTitle" placeholder="Book title..."
+                   class="form-control" style="max-width:300px" />
+            <select @bind="_newBookAuthorId" class="form-select" style="max-width:250px">
+                <option value="0">Select Author</option>
+                @if (_authors is not null)
+                {
+                    @foreach (var author in _authors)
+                    {
+                        <option value="@author.Id">@author.Name</option>
+                    }
+                }
+            </select>
+            <button class="btn btn-primary" @onclick="AddBook">Add Book</button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_bookError))
+        {
+            <div class="alert alert-danger mt-2">@_bookError</div>
+        }
+    </div>
+</div>
+@code {
+    private List<Author>? _authors;
+    private List<Book>? _books;
+
+    private string _newAuthorName = "";
+    private string _authorError = "";
+
+    private string _newBookTitle = "";
+    private int _newBookAuthorId;
+    private string _bookError = "";
+
+    private int? _editingAuthorId;
+    private string _editAuthorName = "";
+
+    private int? _editingBookId;
+    private string _editBookTitle = "";
+    private int _editBookAuthorId;
+
+    private string _searchTerm = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _authors = await Api.GetAuthors();
+        _books = await Api.GetBooks();
+    }
+
+    private IEnumerable<Book> FilteredBooks
+    {
+        get
+        {
+            if (_books is null) return Enumerable.Empty<Book>();
+            if (string.IsNullOrWhiteSpace(_searchTerm)) return _books;
+            return _books.Where(b => b.Title.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+
+    private void StartAuthorEdit(Author author)
+    {
+        _editingAuthorId = author.Id;
+        _editAuthorName = author.Name;
+    }
+
+    private void CancelAuthorEdit() => _editingAuthorId = null;
+
+    private async Task SaveAuthor(Author author)
+    {
+        author.Name = _editAuthorName;
+        await Api.UpdateAuthor(author);
+        _editingAuthorId = null;
+        await LoadData();
+    }
+
+    private void StartBookEdit(Book book)
+    {
+        _editingBookId = book.Id;
+        _editBookTitle = book.Title;
+        _editBookAuthorId = book.AuthorId;
+    }
+
+    private void CancelBookEdit() => _editingBookId = null;
+
+    private async Task SaveBook(Book book)
+    {
+        book.Title = _editBookTitle;
+        book.AuthorId = _editBookAuthorId;
+        await Api.UpdateBook(book);
+        _editingBookId = null;
+        await LoadData();
+    }
+
+    private async Task AddAuthor()
+    {
+        _authorError = "";
+        if (string.IsNullOrWhiteSpace(_newAuthorName))
+        {
+            _authorError = "Author name is required.";
+            return;
+        }
+
+        var success = await Api.CreateAuthor(new Author { Name = _newAuthorName });
+        if (success)
+        {
+            _newAuthorName = "";
+            await LoadData();
+        }
+        else
+        {
+            _authorError = "Failed to add author.";
+        }
+    }
+
+    private async Task DeleteAuthor(int id)
+    {
+        await Api.DeleteAuthor(id);
+        await LoadData();
+    }
+
+    private async Task AddBook()
+    {
+        _bookError = "";
+        if (string.IsNullOrWhiteSpace(_newBookTitle))
+        {
+            _bookError = "Book title is required.";
+            return;
+        }
+        if (_newBookAuthorId == 0)
+        {
+            _bookError = "Please select an author.";
+            return;
+        }
+
+        var success = await Api.CreateBook(new Book
+        {
+            Title = _newBookTitle,
+            AuthorId = _newBookAuthorId
+        });
+
+        if (success)
+        {
+            _newBookTitle = "";
+            _newBookAuthorId = 0;
+            await LoadData();
+        }
+        else
+        {
+            _bookError = "Failed to add book.";
+        }
+    }
+
+    private async Task DeleteBook(int id)
+    {
+        await Api.DeleteBook(id);
+        await LoadData();
+    }
+}

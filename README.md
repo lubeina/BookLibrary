@@ -43,5 +43,5 @@ When you create a book, the API checks that the selected author actually exists.
 
 ## A few things to know
 
-- The Postgres connection string lives in `api/appsettings.json`. You'll probably need to change the username to match your local setup.
+- The Postgres connection string lives in `api/appsettings.json`. You'll probably need to change the username and password to match your local setup.
 - The API runs on port 5001 and the frontend on 5002. Both need to be running at the same time.

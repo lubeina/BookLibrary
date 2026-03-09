@@ -1,4 +1,4 @@
-# Book Manager
+# Book Library App
 
 A small app for managing books and authors. Built with a .NET Web API backend and a Blazor Server frontend, connected to a PostgreSQL database.
 
